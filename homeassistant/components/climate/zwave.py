@@ -278,7 +278,7 @@ class ZWaveClimate(ZWaveDeviceEntity, ClimateDevice):
         """Return the device specific state attributes."""
         data = super().device_state_attributes
         if self._operating_state:
-            data[ATTR_OPERATING_STATE] = self._operating_state,
+            data[ATTR_OPERATING_STATE] = self._operating_state
         if self._fan_state:
             data[ATTR_FAN_STATE] = self._fan_state
         return data
