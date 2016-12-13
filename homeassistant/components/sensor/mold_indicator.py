@@ -248,7 +248,7 @@ class MoldIndicator(Entity):
         else:
             return {
                 ATTR_DEWPOINT:
-                    util.temperature.celsius_to_fahrenheit(self._dewpoint),
+                    None if self._dewpoint is None else util.temperature.celsius_to_fahrenheit(self._dewpoint),
                 ATTR_CRITICAL_TEMP:
-                    util.temperature.celsius_to_fahrenheit(self._crit_temp),
+                    None if self._crit_temp is None else util.temperature.celsius_to_fahrenheit(self._crit_temp),
             }
