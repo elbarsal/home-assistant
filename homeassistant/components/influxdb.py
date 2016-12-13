@@ -5,13 +5,15 @@ For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/influxdb/
 """
 import logging
+import re
 
 import voluptuous as vol
 
 from homeassistant.const import (
     EVENT_STATE_CHANGED, STATE_UNAVAILABLE, STATE_UNKNOWN, CONF_HOST,
     CONF_PORT, CONF_SSL, CONF_VERIFY_SSL, CONF_USERNAME, CONF_BLACKLIST,
-    CONF_PASSWORD, CONF_WHITELIST)
+    CONF_PASSWORD, CONF_WHITELIST,
+    CONF_WHITELIST_REGEX, CONF_BLACKLIST_REGEX)
 from homeassistant.helpers import state as state_helper
 import homeassistant.helpers.config_validation as cv
 
@@ -33,6 +35,8 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(CONF_HOST): cv.string,
         vol.Inclusive(CONF_USERNAME, 'authentication'): cv.string,
         vol.Inclusive(CONF_PASSWORD, 'authentication'): cv.string,
+        vol.Optional(CONF_BLACKLIST_REGEX): cv.string,
+        vol.Optional(CONF_WHITELIST_REGEX): cv.string,
         vol.Optional(CONF_BLACKLIST, default=[]):
             vol.All(cv.ensure_list, [cv.entity_id]),
         vol.Optional(CONF_DB_NAME, default=DEFAULT_DATABASE): cv.string,
@@ -77,6 +81,8 @@ def setup(hass, config):
 
     blacklist = conf.get(CONF_BLACKLIST)
     whitelist = conf.get(CONF_WHITELIST)
+    blacklist_regex = conf.get(CONF_BLACKLIST_REGEX)
+    whitelist_regex = conf.get(CONF_WHITELIST_REGEX)
     tags = conf.get(CONF_TAGS)
     default_measurement = conf.get(CONF_DEFAULT_MEASUREMENT)
 
@@ -92,13 +98,30 @@ def setup(hass, config):
     def influx_event_listener(event):
         """Listen for new messages on the bus and sends them to Influx."""
         state = event.data.get('new_state')
+
+        if blacklist_regex is None or state is None:
+            blacklist_match = False
+        else:
+            blacklist_match = re.search(blacklist_regex, state.entity_id) is not None
+            _LOGGER.debug("Blacklist match: %s for %s", blacklist_match, state.entity_id)
+
+        if whitelist_regex is None or state is None:
+            whitelist_match = False
+        else:
+            whitelist_match = re.search(whitelist_regex, state.entity_id) is not None
+
         if state is None or state.state in (
                 STATE_UNKNOWN, '', STATE_UNAVAILABLE) or \
+                blacklist_match or \
                 state.entity_id in blacklist:
             return
 
         try:
-            if len(whitelist) > 0 and state.entity_id not in whitelist:
+            if whitelist_match:
+                # NOP to eat the return (so that this gets reported to Influx)
+                _LOGGER.debug('re.search %s, %s', state.entity_id, re.search(whitelist_regex, state.entity_id))
+                pass
+            elif len(whitelist) > 0 and state.entity_id not in whitelist:
                 return
 
             _state = state_helper.state_as_number(state)
