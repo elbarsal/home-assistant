@@ -579,6 +579,11 @@ class ZWaveDeviceEntity:
         return False
 
     @property
+    def force_update(self):
+        """Force update."""
+        return True
+
+    @property
     def unique_id(self):
         """Return an unique ID."""
         return "ZWAVE-{}-{}".format(self._value.node.node_id,
